@@ -1,0 +1,239 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #eef2ff;
+            padding: 25px;
+        }
+
+        .container {
+            max-width: 750px;
+            margin: auto;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px #0002;
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: #2563eb;
+        }
+
+        input, button {
+            padding: 11px;
+            margin: 6px 0;
+            box-sizing: border-box;
+        }
+
+        input {
+            width: 100%;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        button {
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: #2563eb;
+            color: white;
+        }
+
+        .delete {
+            background: #dc2626;
+        }
+
+        .edit {
+            background: #0d9488;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 9px;
+            text-align: left;
+        }
+
+        th {
+            background: #dbeafe;
+        }
+
+        #message {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Student Management System</h1>
+
+    <h2>Student Form</h2>
+
+    <form id="studentForm">
+        <input type="hidden" id="id">
+
+        <input id="name" placeholder="Student Name"
+            required maxlength="100">
+
+        <input id="age" type="number"
+            placeholder="Age" min="1" max="120" required>
+
+        <input id="course" placeholder="Course"
+            required maxlength="100">
+
+        <button type="submit" id="saveBtn">
+            Add Student
+        </button>
+        <button type="button" onclick="resetForm()">
+            Clear
+        </button>
+    </form>
+
+    <p id="message" aria-live="polite"></p>
+
+    <h2>Student Records</h2>
+
+    <button onclick="loadStudents()">Refresh</button>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Age</th>
+                <th>Course</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="studentList"></tbody>
+    </table>
+</div>
+
+<script>
+    const api = "/api/students";
+    const form = document.getElementById("studentForm");
+    const message = document.getElementById("message");
+
+    async function loadStudents() {
+        try {
+            const response = await fetch(api);
+            if (!response.ok) throw new Error("Unable to load");
+
+            const students = await response.json();
+            const list = document.getElementById("studentList");
+            list.replaceChildren();
+
+            students.forEach(s => {
+                const tr = document.createElement("tr");
+
+                [s.id, s.name, s.age, s.course].forEach(value => {
+                    const td = document.createElement("td");
+                    td.textContent = value;
+                    tr.appendChild(td);
+                });
+
+                const actions = document.createElement("td");
+
+                const edit = document.createElement("button");
+                edit.textContent = "Edit";
+                edit.className = "edit";
+                edit.onclick = () => editStudent(s);
+
+                const del = document.createElement("button");
+                del.textContent = "Delete";
+                del.className = "delete";
+                del.onclick = () => deleteStudent(s.id);
+
+                actions.append(edit, del);
+                tr.appendChild(actions);
+                list.appendChild(tr);
+            });
+        } catch (error) {
+            message.textContent = "Could not load students.";
+        }
+    }
+
+    form.addEventListener("submit", async event => {
+        event.preventDefault();
+
+        const id = document.getElementById("id").value;
+        const student = {
+            name: document.getElementById("name").value.trim(),
+            age: Number(document.getElementById("age").value),
+            course: document.getElementById("course").value.trim()
+        };
+
+        const method = id ? "PUT" : "POST";
+        const url = id ? `${api}/${id}` : api;
+
+        try {
+            const response = await fetch(url, {
+                method,
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(student)
+            });
+
+            if (!response.ok) {
+                throw new Error("Save failed");
+            }
+
+            message.textContent = await response.text();
+            message.style.color = "green";
+
+            resetForm();
+            await loadStudents();
+        } catch (error) {
+            message.textContent = "Unable to save student.";
+            message.style.color = "red";
+        }
+    });
+
+    function editStudent(s) {
+        document.getElementById("id").value = s.id;
+        document.getElementById("name").value = s.name;
+        document.getElementById("age").value = s.age;
+        document.getElementById("course").value = s.course;
+        document.getElementById("saveBtn").textContent =
+            "Update Student";
+    }
+
+    async function deleteStudent(id) {
+        if (!confirm("Delete this student?")) return;
+
+        try {
+            const response = await fetch(`${api}/${id}`, {
+                method: "DELETE"
+            });
+
+            if (!response.ok) throw new Error("Delete failed");
+
+            message.textContent = await response.text();
+            message.style.color = "green";
+            await loadStudents();
+        } catch (error) {
+            message.textContent = "Unable to delete student.";
+            message.style.color = "red";
+        }
+    }
+
+    function resetForm() {
+        form.reset();
+        document.getElementById("id").value = "";
+        document.getElementById("saveBtn").textContent =
+            "Add Student";
+    }
+
+    loadStudents();
+</script>
+</body>
+</html>
